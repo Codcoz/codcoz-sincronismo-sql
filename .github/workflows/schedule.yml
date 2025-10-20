@@ -1,0 +1,30 @@
+name: Agendar execução do script de sincronismo
+
+on:
+  schedule:
+    # Executa a cada 6 horas
+    - cron: "0 */6 * * *"
+  workflow_dispatch:  # permite rodar manualmente também
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependências
+        run: |
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Executar script Python
+        run: python script.py
+        env:
+          DB_URL_1: ${{ secrets.DB_URL_1 }}
+          DB_URL_2: ${{ secrets.DB_URL_2 }}
