@@ -146,9 +146,9 @@ def normalize_unidade_medida(unidade_medida):
         return cursor_destino.fetchone()[0]    
 
 # Função para normalizar o campo 'unidade_medida' da tabela produto do primeiro, que se tornará 'unidade_medida_id' na tabela produto do segundo
-def normalize_produto(nome_produto, quantidade, unidade_medida, empresa_id):
+def normalize_produto(nome_produto, quantidade, unidade_medida, codigo_ean, empresa_id):
     # Tenta selecionar o produto baseado em seu nome e empresa
-    cursor_destino.execute("SELECT id FROM produto WHERE nome = %s AND empresa_id = %s;", (nome_produto, empresa_id))
+    cursor_destino.execute("SELECT id FROM produto WHERE codigo_ean = %s AND empresa_id = %s;", (codigo_ean, empresa_id))
     row = cursor_destino.fetchone()
     
     # Se não existir, insere esse produto no banco
@@ -159,14 +159,14 @@ def normalize_produto(nome_produto, quantidade, unidade_medida, empresa_id):
         unidade_medida_id = normalize_unidade_medida(unidade_medida)
 
         cursor_destino.execute(
-            "INSERT INTO produto (nome, quantidade, unidade_medida_id, empresa_id) VALUES (%s, %s, %s, %s) RETURNING id;",
-            (nome_produto, quantidade, unidade_medida_id, empresa_id)
+            "INSERT INTO produto (nome, quantidade, unidade_medida_id, empresa_id, codigo_ean) VALUES (%s, %s, %s, %s, %s) RETURNING id;",
+            (nome_produto, quantidade, unidade_medida_id, empresa_id, codigo_ean)
         )
         return cursor_destino.fetchone()[0]
 
-def inserir_item_pedido(pedido_id, produto_nome, quantidade, unidade_medida, empresa_id):
+def inserir_item_pedido(pedido_id, produto_nome, quantidade, unidade_medida, codigo_ean, empresa_id):
     # Mapeia o produto
-    produto_id = normalize_produto(produto_nome, quantidade, unidade_medida, empresa_id)
+    produto_id = normalize_produto(produto_nome, quantidade, unidade_medida, codigo_ean, empresa_id)
 
     cursor_destino.execute("""
         MERGE INTO item_pedido AS t
@@ -200,12 +200,12 @@ def sincronizar_notas_e_itens():
         )
 
         # Selecionando produtos da nota fiscal usando id como parâmetro 
-        sql_query_produto = f"SELECT nome, quantidade, unidade_medida FROM produto WHERE id_nota_fiscal = {nota.id};"
+        sql_query_produto = f"SELECT nome, quantidade, unidade_medida, codigo_ean FROM produto WHERE id_nota_fiscal = {nota.id};"
         df_produtos = pd.read_sql_query(sql_query_produto, conn_origem)
 
     # Rodando a função de upsert pra cada produto/item_pedido do primeiro
         for prod in df_produtos.itertuples(index=False):
-            inserir_item_pedido(pedido_id, prod.nome, prod.quantidade, prod.unidade_medida, empresa_id)
+            inserir_item_pedido(pedido_id, prod.nome, prod.quantidade, prod.unidade_medida, prod.codigo_ean, empresa_id)
 
     # Commitando as alterações
     conn_destino.commit()
