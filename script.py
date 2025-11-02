@@ -16,34 +16,35 @@ cursor_destino = conn_destino.cursor()
 #-----------Sincronismo Empresas-----------
 
 # Função para executar o MERGE statement com base em campos que usaremos do primeiro
-def upsert_empresa(cnpj, nome, email):
+def upsert_empresa(cnpj, nome, email, capacidade_estoque):
     cursor_destino.execute("""
     MERGE INTO empresa AS t
-    USING (VALUES (%s, %s, %s)) AS s(cnpj, nome, email)
+    USING (VALUES (%s, %s, %s, %s)) AS s(cnpj, nome, email, capacidade_estoque)
     ON t.cnpj = s.cnpj
     WHEN MATCHED THEN
-        UPDATE SET nome = s.nome, email = s.email
+        UPDATE SET nome = s.nome, email = s.email, capacidade_estoque = s.capacidade_estoque
     WHEN NOT MATCHED THEN
-        INSERT (cnpj, nome, email)
-        VALUES (s.cnpj, s.nome, s.email);
-    """, (cnpj, nome, email))
+        INSERT (cnpj, nome, email, capacidade_estoque)
+        VALUES (s.cnpj, s.nome, s.email, s.capacidade_estoque);
+    """, (cnpj, nome, email, capacidade_estoque))
 
 # Função para executar o sincronismo das empresas
 def sincronizar_empresas():
 
     # Selecionando todas as empresas do banco do primeiro
     sql_query_empresas = """
-        SELECT id
-             , nome
-             , cnpj
-             , email
-          FROM empresa;
+        SELECT em.id
+             , em.nome
+             , em.cnpj
+             , em.email
+             , ( SELECT SUM(es.capacidade) FROM estoque es WHERE es.id_empresa = em.id ) as capacidade_estoque
+          FROM empresa em;
     """
     df_empresas = pd.read_sql_query(sql_query_empresas, conn_origem)
 
     # Rodando a função de upsert pra cada empresa do primeiro
     for empresa in df_empresas.itertuples(index=False):
-        upsert_empresa(empresa.cnpj, empresa.nome, empresa.email)
+        upsert_empresa(empresa.cnpj, empresa.nome, empresa.email, empresa.capacidade_estoque)
 
     # Commitando as alterações
     conn_destino.commit()
