@@ -135,14 +135,14 @@ def upsert_pedido(cnpj_empresa, cod_nota_fiscal, data_compra):
 # Função para normalizar o campo 'unidade_medida' da tabela produto do primeiro, que se tornará 'unidade_medida_id' na tabela produto do segundo
 def normalize_unidade_medida(unidade_medida):
     # Tenta selecionar a unidade de medida baseado em sua sigla
-    cursor_destino.execute("SELECT id FROM unidade_medida WHERE sigla = %s;", (unidade_medida, ))
+    cursor_destino.execute("SELECT id FROM unidade_medida WHERE sigla = UPPER(%s);", (unidade_medida, ))
     row = cursor_destino.fetchone()
 
     # Se não existir, insere essa unidade de medida no banco
     if row:
         return row[0]
     else:
-        cursor_destino.execute("INSERT INTO unidade_medida (sigla) VALUES (%s) RETURNING id;", (unidade_medida, ))
+        cursor_destino.execute("INSERT INTO unidade_medida (sigla) VALUES (UPPER(%s)) RETURNING id;", (unidade_medida, ))
         return cursor_destino.fetchone()[0]    
 
 # Função para normalizar o campo 'unidade_medida' da tabela produto do primeiro, que se tornará 'unidade_medida_id' na tabela produto do segundo
